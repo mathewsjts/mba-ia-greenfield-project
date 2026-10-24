@@ -1,6 +1,6 @@
 services:
   nestjs-api:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.dev
     ports:
@@ -12,6 +12,40 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  # Consumes the video-processing queue: same codebase and image as the API,
+  # booted as a standalone Nest application context (no HTTP server).
+  video-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    # Runs the compiled worker as the signal-receiving process: tini (init)
+    # forwards SIGTERM straight to node, so the worker closes gracefully. A watch
+    # wrapper (npm / nest --watch) would kill it abruptly. Restart the service to
+    # pick up code changes.
+    init: true
+    command:
+      - sh
+      - -c
+      - npx nest build --path tsconfig.worker.json && exec node dist-worker/worker
+    stop_grace_period: 60s
+    volumes:
+      - .:/home/node/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
 
   db:
     image: postgres:17
@@ -33,4 +67,64 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  # S3-compatible object storage for video originals and thumbnails.
+  # MinIO ignores bucket lifecycle AbortIncompleteMultipartUpload and bucket CORS,
+  # so both are configured server-wide: stale multipart uploads expire via
+  # MINIO_API_STALE_UPLOADS_EXPIRY and the global CORS exposes the ETag header.
+  minio:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${STORAGE_ACCESS_KEY:-streamtube}
+      - MINIO_ROOT_PASSWORD=${STORAGE_SECRET_KEY:-streamtube-secret}
+      - MINIO_API_STALE_UPLOADS_EXPIRY=24h
+      - MINIO_API_STALE_UPLOADS_CLEANUP_INTERVAL=1h
+      - MINIO_API_CORS_ALLOW_ORIGIN=*
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
+  # One-shot provisioning: creates the application and test buckets (idempotent).
+  minio-init:
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY:-streamtube}
+      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY:-streamtube-secret}
+      - STORAGE_BUCKET=${STORAGE_BUCKET:-streamtube-videos}
+      - STORAGE_TEST_BUCKET=${STORAGE_TEST_BUCKET:-streamtube-videos-test}
+    entrypoint:
+      - bash
+      - -c
+      - >-
+        mc alias set local http://minio:9000 "$$STORAGE_ACCESS_KEY" "$$STORAGE_SECRET_KEY" &&
+        mc mb --ignore-existing "local/$$STORAGE_BUCKET" &&
+        mc mb --ignore-existing "local/$$STORAGE_TEST_BUCKET"
+    restart: "no"
+
+  # BullMQ broker for the video-processing queue.
+  redis:
+    image: redis:7.4.11-alpine
+    command: redis-server --maxmemory-policy noeviction --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  minio-data:
+  redis-data:
