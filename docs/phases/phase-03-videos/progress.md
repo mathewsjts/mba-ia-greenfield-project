@@ -11,7 +11,7 @@
 - **Observations:**
   - MinIO (`pgsty/minio:RELEASE.2026-08-04T00-00-00Z`) rejects a lifecycle rule carrying only `AbortIncompleteMultipartUpload`, and silently drops it when combined with another action. It also returns "not implemented" for bucket-level CORS (`mc cors set`). With the user's approval, both were replaced by MinIO-native server settings: `MINIO_API_STALE_UPLOADS_EXPIRY=24h` + `MINIO_API_STALE_UPLOADS_CLEANUP_INTERVAL=1h` (the storage-level expiry of TD-13), and `MINIO_API_CORS_ALLOW_ORIGIN=*`, whose global CORS already exposes `Etag` (TD-02). `minio-init` only creates the buckets. The S3 lifecycle rule remains the production (AWS S3) path.
   - Pinned images: `pgsty/minio:RELEASE.2026-08-04T00-00-00Z`, `pgsty/mc:RELEASE.2026-09-16T00-00-00Z`, `redis:7.4.11-alpine`. Bucket names default to `streamtube-videos` / `streamtube-videos-test` via Compose interpolation (`STORAGE_BUCKET` / `STORAGE_TEST_BUCKET`).
-  - TD-13 Revisions follow-up: the decisions doc still describes the lifecycle rule; record a `/decide` revision for the MinIO-native mechanism.
+  - TD-13 follow-up closed (2026-10-24): no Revision needed. TD-13 Option A already names MinIO's stale-upload expiry (`stale_uploads_expiry`) for local and the S3 lifecycle rule for production. The deviation is only in this plan's SI-03.1 / Data Model wording (lifecycle rule and bucket CORS via `minio-init`) and is recorded here.
 
 ### SI-03.2 — Configuração: variáveis de storage, fila e upload
 - **Status:** completed
