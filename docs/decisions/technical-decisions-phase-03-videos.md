@@ -1,9 +1,9 @@
 ---
 scope_type: phase
 related_phases: [3]
-status: pending
+status: decided
 date: 2026-10-12
-scope_description: "Backend foundation for video upload and processing: message queue, 10GB direct-to-storage upload protocol, S3-compatible storage layout and local server, video worker topology and FFmpeg integration, status lifecycle and failure policy, unique public video id, streaming/download delivery and its access policy, and the test strategy against real infrastructure."
+scope_description: "Backend foundation for video upload and processing: message queue, 10GB direct-to-storage upload protocol, S3-compatible storage layout and local server, video worker topology and FFmpeg integration, status lifecycle and failure policy, unique public video id, streaming/download delivery and its access policy, accepted input formats and transcoding stance, and the test strategy against real infrastructure."
 ---
 
 # Technical Decisions — Phase 03: Upload e Processamento de Vídeos
@@ -42,7 +42,8 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A (BullMQ + Redis, `@nestjs/bullmq@11.0.5`)** — it is the only option that provides retries/backoff, job ids and a Nest-native processor out of the box on the installed CommonJS + Nest 11 stack. The Redis service is a small, well-understood addition. RabbitMQ needs a hand-built retry topology, and pg-boss's ESM-only line conflicts with the build.
 
-**Decision:** _[pending]_
+**Decision:** A
+**Libraries:** @nestjs/bullmq, bullmq
 
 ---
 
@@ -73,7 +74,11 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A (S3 multipart with presigned part URLs)** — it is the only option where the API never touches the file bytes, which directly satisfies "sem impacto na performance". It is resumable natively and portable to AWS S3. The extra handshake steps are a small contract cost compared to proxying 10GB through Nest.
 
-**Decision:** _[pending]_
+**Decision:** A
+**Libraries:** @aws-sdk/client-s3, @aws-sdk/s3-request-presigner
+
+**Revisions:**
+- 2026-10-24 — Operational definition of "sem impacto na performance": the API never receives or buffers file bytes (direct-to-storage); API memory and request time do not grow with file size; uploads declared above 10 GiB are rejected at initiate before any part URL is issued; worker metadata/thumbnail extraction reads only the byte ranges it needs (TD-09), never the full object. Rationale: AMB-1 resolved in `/plan-resolve 3` (API + worker definition).
 
 ---
 
@@ -104,7 +109,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — a server-owned part size keeps the 10GB/10,000-part math deterministic. On-demand short-lived URLs make resume work after any interruption without long-lived credentials in circulation. At `complete`, the server also verifies the stored object size with `HeadObject` against the declared size, and the worker's ffprobe (TD-09) rejects non-video content.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -135,7 +140,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A (`pgsty/minio`, pinned tag)** — it keeps the exact server the project and challenge specify, with a pullable pinned image and an `mc` companion. The fork-trust trade-off is acceptable for a dev/test-only service, because production uses AWS S3.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -166,7 +171,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — one private bucket with per-video prefixes matches the draft-only reality of Phase 03, keeps provisioning minimal, and makes video-level operations atomic on a prefix. Public thumbnail URLs can be revisited when publication arrives.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -197,7 +202,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — signing with a public-endpoint client is the standard SigV4-safe answer. It keeps the CLAUDE.md networking rule intact for container traffic, and the only extra cost is one config key. The worker's media access (TD-09) must use the internal signer.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -223,7 +228,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — with presigned multipart, the API already has to perform `CompleteMultipartUpload`, so enqueuing in the same step adds no infra and keeps the flow testable. Bucket notifications would add an event pipeline that solves no remaining problem.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -254,7 +259,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — a dedicated container satisfies the architecture's isolation and scaling intent. Running it as a standalone Nest context from the same codebase avoids duplicating the domain layer.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -285,7 +290,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option B** — range-based reads make metadata and thumbnail extraction cost proportional to what FFmpeg needs, not to the 10GB upload. The worker needs no large scratch disk and the same code runs against S3.
 
-**Decision:** _[pending]_
+**Decision:** B
 
 ---
 
@@ -316,7 +321,10 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — the two commands needed are small and stable. A typed spawn wrapper over distro binaries avoids betting on a deprecated wrapper or postinstall binary downloads. It also places ffmpeg in the shared image that the tests use (TD-17).
 
-**Decision:** _[pending]_
+**Decision:** A
+
+**Revisions:**
+- 2026-10-24 — Processing outputs pinned: persist `duration` (seconds), `width`, `height`, `size_bytes`, `container`, `video_codec` and `audio_codec` (nullable). Thumbnail: frame at 10% of duration (first frame when duration < 1s), JPEG, 1280px wide preserving aspect ratio. Rationale: AMB-3 resolved in `/plan-resolve 3` (core metadata set).
 
 ---
 
@@ -347,7 +355,10 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option B** — separating the user-facing draft state from the system-driven processing pipeline avoids an overloaded "draft" value. It still records "rascunho" explicitly at pre-registration and the full processing cycle, at the cost of one extra column.
 
-**Decision:** _[pending]_
+**Decision:** B
+
+**Revisions:**
+- 2026-10-24 — Draft pre-registration fields pinned: `initiate` takes `fileName`, `size`, `contentType` and an optional `title` (defaults to the file name without extension); the owning channel comes from the JWT. Phase 03 owns `status: draft` and the `processing_status` transitions up to `ready | failed`; draft → published and metadata editing belong to Phase 04. Rationale: AMB-2 resolved in `/plan-resolve 3` (title defaults to file name).
 
 ---
 
@@ -378,7 +389,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — bounded retries with backoff distinguish transient from permanent failures cheaply, and the final state always lands in the DB with a reason. A DLQ adds operations surface without a consumer in this phase.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -409,7 +420,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — storage-native expiry bounds cost without scheduler code. The explicit abort plus lazy `NoSuchUpload` detection keeps the DB honest on every path the API sees. A reaper job can be added later if stale drafts become a product concern.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -445,7 +456,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option B** — Node's `crypto` gives short, unguessable ids with no dependency, and the existing unique-constraint + retry pattern from `channels` already guarantees no conflicts. nanoid's ESM-only/engines constraints and Sqids' enumerability are avoidable costs.
 
-**Decision:** _[pending]_
+**Decision:** B
 
 ---
 
@@ -481,7 +492,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — presigned GET URLs give range-based streaming (`206`) and attachment downloads straight from storage, with the API only authorizing. It fits the Bearer-token API without making media endpoints public. HLS is out of proportion to this phase's requirements.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -512,7 +523,7 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — owner-only access is the only policy consistent with "every video is a draft" in this phase. It reuses the existing JWT guard and leaves anonymous access to the phase that introduces publication and visibility.
 
-**Decision:** _[pending]_
+**Decision:** A
 
 ---
 
@@ -543,7 +554,41 @@ _Subprojects in scope:_
 
 **Recommendation:** **Option A** — real Compose services with namespaced bucket/queue isolation and an in-process processor test what actually breaks (multipart, presign, range reads, FFmpeg) and follow the project's existing testing model. Mocks would hide this phase's main risks.
 
-**Decision:** _[pending]_
+**Decision:** A
+
+**Revisions:**
+- 2026-10-24 — Contract re-sync is a Phase 03 deliverable: every video endpoint change regenerates the backend `openapi.json` and runs the repo-root sync script, which regenerates `next-frontend/openapi.json` and `types.gen.ts` (per next-frontend-openapi-typing/TD-02, TD-03), so the FE freshness check stays green; no FE source changes (video UI stays deferred). Rationale: IC-1 resolved in `/plan-resolve 3` (re-sync as deliverable).
+
+---
+
+## TD-18: Accepted Input Formats, Validation and Transcoding Stance
+
+**Scope:** Cross-layer
+
+**Capability:** Transversal — covers: Upload de vídeos com suporte a arquivos de até 10GB sem impacto na performance; Processamento automático do vídeo após upload (extração de duração e metadados); Reprodução via streaming (sem necessidade de download completo)
+
+**Context:** Streaming plays the stored object directly in the browser through presigned GETs (TD-15), so a `ready` video only streams if its container and codecs are browser-playable. Per MDN (checked 2026-10-24), MP4 and WebM are supported in all browsers. In MP4, H.264, VP9 and AV1 are supported (AV1 needs specific hardware in Safari), and so are AAC, MP3 and Opus. In WebM, VP8, VP9, AV1, Opus and Vorbis are supported. QuickTime (MOV) is not supported outside older Safari, HEVC depends on OS/hardware, and MKV/AVI are not listed. Because parts are `PUT` straight to storage (TD-02), the API never sees the bytes. Initiate-time checks therefore cover only client-declared metadata (MIME, extension, size per TD-03). The worker's `ffprobe` (TD-09/TD-10) is the only check against the actual content. The allowlist is a client contract: the initiate DTO, its error response, and a future frontend file-picker `accept` must agree on it. Depends on TD-03, TD-09, TD-10, TD-11, TD-12, TD-15.
+
+**Options:**
+
+### Option A: Browser-playable allowlist, stored as uploaded, no transcoding
+- `initiate` accepts only declared `video/mp4` (`.mp4`/`.m4v`) and `video/webm` (`.webm`). The worker's `ffprobe` must then confirm an MP4- or WebM-family container, a video stream in {H.264, VP8, VP9, AV1} paired with its container, and audio in {AAC, MP3, Opus, Vorbis} or none. Any mismatch, or non-video content, ends as failed with an `unsupported_format` reason that does not consume retries (TD-12).
+- **Pros:** Every `ready` video streams in every browser. Processing stays range-read-only (TD-09 B), so cost does not grow with file size. No CPU-heavy encoding and no second stored rendition. The contract is small and testable.
+- **Cons:** Rejects common sources: iPhone default recordings (HEVC in MOV), MKV, AVI. `ffprobe` reports MP4/MOV as one family (`mov,mp4,m4a,3gp,3g2,mj2`) and MKV/WebM as another (`matroska,webm`), so the check must look at codecs, not only `format_name`.
+
+### Option B: Broad allowlist + conditional normalization (remux or transcode to MP4 H.264/AAC)
+- `initiate` also accepts MOV, MKV and AVI. The worker inspects each file. If the codecs are already playable, it remuxes into MP4 (`-c copy`). Otherwise it transcodes to H.264/AAC MP4 and stores the result as a separate playback rendition next to the original.
+- **Pros:** Accepts what users actually record. Every `ready` video still streams.
+- **Cons:** Normalization reads and writes the whole object (up to 10GB), which overrides TD-09 B for those jobs and needs scratch disk or streamed multipart output. A software transcode of a long 10GB video can take hours of worker CPU. It adds a derived object to TD-05's layout and makes TD-15 choose rendition vs original for stream and download. Job duration also needs revisiting in TD-12. None of this is required by `project-plan.md`, which limits processing to extraction.
+
+### Option C: Accept any video `ffprobe` recognizes, store as uploaded, best-effort playback
+- `initiate` accepts any `video/*` MIME. The worker only rejects content that `ffprobe` cannot parse as video, and any parseable file becomes `ready`.
+- **Pros:** Simplest validation and widest acceptance, with no encoding cost.
+- **Cons:** `ready` stops meaning "streamable": MKV, HEVC or AVI uploads can reach `ready` and then fail to play in some or all browsers. That silently breaks the streaming capability and moves the problem to a future frontend.
+
+**Recommendation:** **Option A** — it is the only option where every `ready` video is guaranteed to stream and processing cost stays independent of the 10GB size. It keeps TD-09's range-read worker and TD-15's direct-from-storage delivery intact. Rejecting HEVC/MOV is the explicit cost. It is reversible: a later phase can add Option B's normalization as a new TD without changing the upload contract shape.
+
+**Decision:** A
 
 ---
 
@@ -551,20 +596,21 @@ _Subprojects in scope:_
 
 | ID | Scope | Decision | Recommendation | Choice |
 |----|-------|----------|---------------|--------|
-| TD-01 | Backend | Message Queue Technology | A (BullMQ + Redis, `@nestjs/bullmq@11.0.5`) | _[pending]_ |
-| TD-02 | Cross-layer | Large-file Upload Protocol (10GB) | A (S3 multipart with presigned part URLs) | _[pending]_ |
-| TD-03 | Backend | Part Sizing and Presigned-URL Issuance | A (fixed server part size + on-demand presign batches) | _[pending]_ |
-| TD-04 | Repo-wide | Local S3-compatible Storage Server Image | A (`pgsty/minio`, pinned tag) | _[pending]_ |
-| TD-05 | Backend | Bucket and Object-key Layout | A (single private bucket, per-video prefix) | _[pending]_ |
-| TD-06 | Backend | Presigned-URL Host Topology | A (internal client + public signing client) | _[pending]_ |
-| TD-07 | Backend | Processing Trigger | A (API `complete` enqueues the job) | _[pending]_ |
-| TD-08 | Repo-wide | Video Worker Runtime Topology | A (separate service, same codebase/image, standalone Nest context) | _[pending]_ |
-| TD-09 | Backend | Media Access Strategy for ffprobe/FFmpeg | B (presigned GET with HTTP range reads) | _[pending]_ |
-| TD-10 | Backend | FFmpeg Integration Library and Binary Source | A (distro ffmpeg + typed `spawn` wrapper) | _[pending]_ |
-| TD-11 | Backend | Video Status Model | B (`status` draft + `processing_status` pipeline) | _[pending]_ |
-| TD-12 | Backend | Processing Failure and Retry Policy | A (bounded retries + backoff, then failed with reason) | _[pending]_ |
-| TD-13 | Backend | Abandoned and Incomplete Uploads | A (abort endpoint + storage-level expiry) | _[pending]_ |
-| TD-14 | Backend | Unique Public Video Identifier | B (`crypto.randomBytes` base64url, UNIQUE + retry) | _[pending]_ |
-| TD-15 | Cross-layer | Streaming and Download Delivery | A (presigned GET URLs returned as JSON) | _[pending]_ |
-| TD-16 | Backend | Access Policy for Stream and Download | A (owner-only) | _[pending]_ |
-| TD-17 | Repo-wide | Test Strategy for Storage, Queue and Worker | A (real Compose services, namespaced, in-process processor) | _[pending]_ |
+| TD-01 | Backend | Message Queue Technology | A (BullMQ + Redis, `@nestjs/bullmq@11.0.5`) | A |
+| TD-02 | Cross-layer | Large-file Upload Protocol (10GB) | A (S3 multipart with presigned part URLs) | A |
+| TD-03 | Backend | Part Sizing and Presigned-URL Issuance | A (fixed server part size + on-demand presign batches) | A |
+| TD-04 | Repo-wide | Local S3-compatible Storage Server Image | A (`pgsty/minio`, pinned tag) | A |
+| TD-05 | Backend | Bucket and Object-key Layout | A (single private bucket, per-video prefix) | A |
+| TD-06 | Backend | Presigned-URL Host Topology | A (internal client + public signing client) | A |
+| TD-07 | Backend | Processing Trigger | A (API `complete` enqueues the job) | A |
+| TD-08 | Repo-wide | Video Worker Runtime Topology | A (separate service, same codebase/image, standalone Nest context) | A |
+| TD-09 | Backend | Media Access Strategy for ffprobe/FFmpeg | B (presigned GET with HTTP range reads) | B |
+| TD-10 | Backend | FFmpeg Integration Library and Binary Source | A (distro ffmpeg + typed `spawn` wrapper) | A |
+| TD-11 | Backend | Video Status Model | B (`status` draft + `processing_status` pipeline) | B |
+| TD-12 | Backend | Processing Failure and Retry Policy | A (bounded retries + backoff, then failed with reason) | A |
+| TD-13 | Backend | Abandoned and Incomplete Uploads | A (abort endpoint + storage-level expiry) | A |
+| TD-14 | Backend | Unique Public Video Identifier | B (`crypto.randomBytes` base64url, UNIQUE + retry) | B |
+| TD-15 | Cross-layer | Streaming and Download Delivery | A (presigned GET URLs returned as JSON) | A |
+| TD-16 | Backend | Access Policy for Stream and Download | A (owner-only) | A |
+| TD-17 | Repo-wide | Test Strategy for Storage, Queue and Worker | A (real Compose services, namespaced, in-process processor) | A |
+| TD-18 | Cross-layer | Accepted Input Formats, Validation and Transcoding Stance | A (browser-playable MP4/WebM allowlist, ffprobe-verified, no transcoding) | A |

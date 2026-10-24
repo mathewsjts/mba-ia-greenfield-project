@@ -3,7 +3,7 @@ kind: phase
 name: phase-03-videos
 sources_mtime:
   docs/project-plan.md: "2026-10-10T15:30:11-03:00"
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-10-12T17:45:29-03:00"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-10-24T17:21:42-03:00"
   docs/decisions/technical-decisions-openapi-docs-nestjs.md: "2026-10-10T15:30:11-03:00"
   docs/decisions/technical-decisions-next-frontend-config-base.md: "2026-10-10T15:30:11-03:00"
   docs/decisions/technical-decisions-next-frontend-msw-foundation.md: "2026-10-10T15:30:11-03:00"
@@ -12,6 +12,7 @@ sources_mtime:
   docs/phases/phase-02-auth/context.md: "2026-10-10T15:30:11-03:00"
   docs/phases/phase-02-auth-frontend/context.md: "2026-10-10T15:30:11-03:00"
   .claude/skills/testing-guide-nestjs-project/SKILL.md: "2026-10-10T15:30:11-03:00"
+  docs/phases/phase-03-videos/library-refs.md: "2026-10-24T17:24:32-03:00"
 ---
 
 # phase-03-videos — Context
@@ -51,24 +52,28 @@ sources_mtime:
 
 | Ref | Source | Scope | Topic | Status | Decision | Libraries |
 |-----|--------|-------|-------|--------|----------|-----------|
-| phase-03-videos/TD-01 | phase | Backend | Message Queue Technology | pending | — | — |
-| phase-03-videos/TD-02 | phase | Cross-layer | Large-file Upload Protocol (10GB) | pending | — | — |
-| phase-03-videos/TD-03 | phase | Backend | Part Sizing and Presigned-URL Issuance | pending | — | — |
-| phase-03-videos/TD-04 | phase | Repo-wide | Local S3-compatible Storage Server Image | pending | — | — |
-| phase-03-videos/TD-05 | phase | Backend | Bucket and Object-key Layout | pending | — | — |
-| phase-03-videos/TD-06 | phase | Backend | Presigned-URL Host Topology (internal vs public endpoint) | pending | — | — |
-| phase-03-videos/TD-07 | phase | Backend | Processing Trigger | pending | — | — |
-| phase-03-videos/TD-08 | phase | Repo-wide | Video Worker Runtime Topology | pending | — | — |
-| phase-03-videos/TD-09 | phase | Backend | Media Access Strategy for ffprobe/FFmpeg | pending | — | — |
-| phase-03-videos/TD-10 | phase | Backend | FFmpeg Integration Library and Binary Source | pending | — | — |
-| phase-03-videos/TD-11 | phase | Backend | Video Status Model | pending | — | — |
-| phase-03-videos/TD-12 | phase | Backend | Processing Failure and Retry Policy | pending | — | — |
-| phase-03-videos/TD-13 | phase | Backend | Abandoned and Incomplete Uploads | pending | — | — |
-| phase-03-videos/TD-14 | phase | Backend | Unique Public Video Identifier | pending | — | — |
-| phase-03-videos/TD-15 | phase | Cross-layer | Streaming and Download Delivery | pending | — | — |
-| phase-03-videos/TD-16 | phase | Backend | Access Policy for Stream and Download in Phase 03 | pending | — | — |
-| phase-03-videos/TD-17 | phase | Repo-wide | Test Strategy for Storage, Queue and Worker | pending | — | — |
-
+| phase-03-videos/TD-01 | phase | Backend | Message Queue Technology | decided | A | @nestjs/bullmq, bullmq |
+| phase-03-videos/TD-02 | phase | Cross-layer | Large-file Upload Protocol (10GB) | decided | A | @aws-sdk/client-s3, @aws-sdk/s3-request-presigner |
+|     └─ Last revision: 2026-10-24 — Operational definition of "sem impacto na performance": the API never receives… | | | | | | |
+| phase-03-videos/TD-03 | phase | Backend | Part Sizing and Presigned-URL Issuance | decided | A | — |
+| phase-03-videos/TD-04 | phase | Repo-wide | Local S3-compatible Storage Server Image | decided | A | — |
+| phase-03-videos/TD-05 | phase | Backend | Bucket and Object-key Layout | decided | A | — |
+| phase-03-videos/TD-06 | phase | Backend | Presigned-URL Host Topology (internal vs public endpoint) | decided | A | — |
+| phase-03-videos/TD-07 | phase | Backend | Processing Trigger | decided | A | — |
+| phase-03-videos/TD-08 | phase | Repo-wide | Video Worker Runtime Topology | decided | A | — |
+| phase-03-videos/TD-09 | phase | Backend | Media Access Strategy for ffprobe/FFmpeg | decided | B | — |
+| phase-03-videos/TD-10 | phase | Backend | FFmpeg Integration Library and Binary Source | decided | A | — |
+|     └─ Last revision: 2026-10-24 — Processing outputs pinned: persist `duration` (seconds), `width`, `height`… | | | | | | |
+| phase-03-videos/TD-11 | phase | Backend | Video Status Model | decided | B | — |
+|     └─ Last revision: 2026-10-24 — Draft pre-registration fields pinned: `initiate` takes `fileName`, `size`… | | | | | | |
+| phase-03-videos/TD-12 | phase | Backend | Processing Failure and Retry Policy | decided | A | — |
+| phase-03-videos/TD-13 | phase | Backend | Abandoned and Incomplete Uploads | decided | A | — |
+| phase-03-videos/TD-14 | phase | Backend | Unique Public Video Identifier | decided | B | — |
+| phase-03-videos/TD-15 | phase | Cross-layer | Streaming and Download Delivery | decided | A | — |
+| phase-03-videos/TD-16 | phase | Backend | Access Policy for Stream and Download in Phase 03 | decided | A | — |
+| phase-03-videos/TD-17 | phase | Repo-wide | Test Strategy for Storage, Queue and Worker | decided | A | — |
+|     └─ Last revision: 2026-10-24 — Contract re-sync is a Phase 03 deliverable: every video endpoint change… | | | | | | |
+| phase-03-videos/TD-18 | phase | Cross-layer | Accepted Input Formats, Validation and Transcoding Stance | decided | A | — |
 _Source files:_
 
 - phase-03-videos — `docs/decisions/technical-decisions-phase-03-videos.md` (scope_type: phase)
@@ -79,17 +84,117 @@ _Source files:_
 |-----------------------------------|------------|
 | Serviço de armazenamento de arquivos (vídeos e thumbnails) | phase-03-videos/TD-04, phase-03-videos/TD-05, phase-03-videos/TD-17 |
 | Serviço de processamento em segundo plano (filas) | phase-03-videos/TD-01, phase-03-videos/TD-08, phase-03-videos/TD-17 |
-| Upload de vídeos com suporte a arquivos de até 10GB sem impacto na performance | phase-03-videos/TD-02, phase-03-videos/TD-03, phase-03-videos/TD-06 |
+| Upload de vídeos com suporte a arquivos de até 10GB sem impacto na performance | phase-03-videos/TD-02, phase-03-videos/TD-03, phase-03-videos/TD-06, phase-03-videos/TD-18 |
 | Pré-cadastro automático do vídeo como rascunho ao iniciar o upload | phase-03-videos/TD-11, phase-03-videos/TD-13 |
-| Processamento automático do vídeo após upload (extração de duração e metadados) | phase-03-videos/TD-07, phase-03-videos/TD-08, phase-03-videos/TD-09, phase-03-videos/TD-10, phase-03-videos/TD-11, phase-03-videos/TD-12, phase-03-videos/TD-17 |
+| Processamento automático do vídeo após upload (extração de duração e metadados) | phase-03-videos/TD-07, phase-03-videos/TD-08, phase-03-videos/TD-09, phase-03-videos/TD-10, phase-03-videos/TD-11, phase-03-videos/TD-12, phase-03-videos/TD-17, phase-03-videos/TD-18 |
 | Geração automática de thumbnail a partir de um frame do vídeo | phase-03-videos/TD-08, phase-03-videos/TD-09, phase-03-videos/TD-10, phase-03-videos/TD-17 |
 | URL única por vídeo, sem conflito com outros vídeos | phase-03-videos/TD-14 |
-| Reprodução via streaming (sem necessidade de download completo) | phase-03-videos/TD-06, phase-03-videos/TD-15, phase-03-videos/TD-16 |
+| Reprodução via streaming (sem necessidade de download completo) | phase-03-videos/TD-06, phase-03-videos/TD-15, phase-03-videos/TD-16, phase-03-videos/TD-18 |
 | Download do vídeo pelo usuário | phase-03-videos/TD-06, phase-03-videos/TD-15, phase-03-videos/TD-16 |
 
 ## Decisions Detail
 
-_No decided TDs yet._
+### phase-03-videos/TD-01
+
+**Recommendation:** it is the only option that provides retries/backoff, job ids and a Nest-native processor out of the box on the installed CommonJS + Nest 11 stack. The Redis service is a small, well-understood addition. RabbitMQ needs a hand-built retry topology, and pg-boss's ESM-only line conflicts with the build.
+**Libraries:** @nestjs/bullmq, bullmq
+
+### phase-03-videos/TD-02
+
+**Recommendation:** it is the only option where the API never touches the file bytes, which directly satisfies "sem impacto na performance". It is resumable natively and portable to AWS S3. The extra handshake steps are a small contract cost compared to proxying 10GB through Nest.
+**Libraries:** @aws-sdk/client-s3, @aws-sdk/s3-request-presigner
+
+**Revisions:**
+- 2026-10-24 — Operational definition of "sem impacto na performance": the API never receives or buffers file bytes (direct-to-storage); API memory and request time do not grow with file size; uploads declared above 10 GiB are rejected at initiate before any part URL is issued; worker metadata/thumbnail extraction reads only the byte ranges it needs (TD-09), never the full object. Rationale: AMB-1 resolved in `/plan-resolve 3` (API + worker definition).
+
+### phase-03-videos/TD-03
+
+**Recommendation:** a server-owned part size keeps the 10GB/10,000-part math deterministic. On-demand short-lived URLs make resume work after any interruption without long-lived credentials in circulation. At `complete`, the server also verifies the stored object size with `HeadObject` against the declared size, and the worker's ffprobe (TD-09) rejects non-video content.
+**Libraries:** —
+
+### phase-03-videos/TD-04
+
+**Recommendation:** it keeps the exact server the project and challenge specify, with a pullable pinned image and an `mc` companion. The fork-trust trade-off is acceptable for a dev/test-only service, because production uses AWS S3.
+**Libraries:** —
+
+### phase-03-videos/TD-05
+
+**Recommendation:** one private bucket with per-video prefixes matches the draft-only reality of Phase 03, keeps provisioning minimal, and makes video-level operations atomic on a prefix. Public thumbnail URLs can be revisited when publication arrives.
+**Libraries:** —
+
+### phase-03-videos/TD-06
+
+**Recommendation:** signing with a public-endpoint client is the standard SigV4-safe answer. It keeps the CLAUDE.md networking rule intact for container traffic, and the only extra cost is one config key. The worker's media access (TD-09) must use the internal signer.
+**Libraries:** —
+
+### phase-03-videos/TD-07
+
+**Recommendation:** with presigned multipart, the API already has to perform `CompleteMultipartUpload`, so enqueuing in the same step adds no infra and keeps the flow testable. Bucket notifications would add an event pipeline that solves no remaining problem.
+**Libraries:** —
+
+### phase-03-videos/TD-08
+
+**Recommendation:** a dedicated container satisfies the architecture's isolation and scaling intent. Running it as a standalone Nest context from the same codebase avoids duplicating the domain layer.
+**Libraries:** —
+
+### phase-03-videos/TD-09
+
+**Recommendation:** range-based reads make metadata and thumbnail extraction cost proportional to what FFmpeg needs, not to the 10GB upload. The worker needs no large scratch disk and the same code runs against S3.
+**Libraries:** —
+
+### phase-03-videos/TD-10
+
+**Recommendation:** the two commands needed are small and stable. A typed spawn wrapper over distro binaries avoids betting on a deprecated wrapper or postinstall binary downloads. It also places ffmpeg in the shared image that the tests use (TD-17).
+**Libraries:** —
+
+**Revisions:**
+- 2026-10-24 — Processing outputs pinned: persist `duration` (seconds), `width`, `height`, `size_bytes`, `container`, `video_codec` and `audio_codec` (nullable). Thumbnail: frame at 10% of duration (first frame when duration < 1s), JPEG, 1280px wide preserving aspect ratio. Rationale: AMB-3 resolved in `/plan-resolve 3` (core metadata set).
+
+### phase-03-videos/TD-11
+
+**Recommendation:** separating the user-facing draft state from the system-driven processing pipeline avoids an overloaded "draft" value. It still records "rascunho" explicitly at pre-registration and the full processing cycle, at the cost of one extra column.
+**Libraries:** —
+
+**Revisions:**
+- 2026-10-24 — Draft pre-registration fields pinned: `initiate` takes `fileName`, `size`, `contentType` and an optional `title` (defaults to the file name without extension); the owning channel comes from the JWT. Phase 03 owns `status: draft` and the `processing_status` transitions up to `ready | failed`; draft → published and metadata editing belong to Phase 04. Rationale: AMB-2 resolved in `/plan-resolve 3` (title defaults to file name).
+
+### phase-03-videos/TD-12
+
+**Recommendation:** bounded retries with backoff distinguish transient from permanent failures cheaply, and the final state always lands in the DB with a reason. A DLQ adds operations surface without a consumer in this phase.
+**Libraries:** —
+
+### phase-03-videos/TD-13
+
+**Recommendation:** storage-native expiry bounds cost without scheduler code. The explicit abort plus lazy `NoSuchUpload` detection keeps the DB honest on every path the API sees. A reaper job can be added later if stale drafts become a product concern.
+**Libraries:** —
+
+### phase-03-videos/TD-14
+
+**Recommendation:** Node's `crypto` gives short, unguessable ids with no dependency, and the existing unique-constraint + retry pattern from `channels` already guarantees no conflicts. nanoid's ESM-only/engines constraints and Sqids' enumerability are avoidable costs.
+**Libraries:** —
+
+### phase-03-videos/TD-15
+
+**Recommendation:** presigned GET URLs give range-based streaming (`206`) and attachment downloads straight from storage, with the API only authorizing. It fits the Bearer-token API without making media endpoints public. HLS is out of proportion to this phase's requirements.
+**Libraries:** —
+
+### phase-03-videos/TD-16
+
+**Recommendation:** owner-only access is the only policy consistent with "every video is a draft" in this phase. It reuses the existing JWT guard and leaves anonymous access to the phase that introduces publication and visibility.
+**Libraries:** —
+
+### phase-03-videos/TD-17
+
+**Recommendation:** real Compose services with namespaced bucket/queue isolation and an in-process processor test what actually breaks (multipart, presign, range reads, FFmpeg) and follow the project's existing testing model. Mocks would hide this phase's main risks.
+**Libraries:** —
+
+**Revisions:**
+- 2026-10-24 — Contract re-sync is a Phase 03 deliverable: every video endpoint change regenerates the backend `openapi.json` and runs the repo-root sync script, which regenerates `next-frontend/openapi.json` and `types.gen.ts` (per next-frontend-openapi-typing/TD-02, TD-03), so the FE freshness check stays green; no FE source changes (video UI stays deferred). Rationale: IC-1 resolved in `/plan-resolve 3` (re-sync as deliverable).
+
+### phase-03-videos/TD-18
+
+**Recommendation:** it is the only option where every `ready` video is guaranteed to stream and processing cost stays independent of the 10GB size. It keeps TD-09's range-read worker and TD-15's direct-from-storage delivery intact. Rejecting HEVC/MOV is the explicit cost. It is reversible: a later phase can add Option B's normalization as a new TD without changing the upload contract shape.
+**Libraries:** —
 
 ## Inherited Decisions Detail
 
