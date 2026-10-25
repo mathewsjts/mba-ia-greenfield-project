@@ -128,4 +128,47 @@ describe('exportSpec (integration)', () => {
       }
     }
   });
+
+  describe('videos contract', () => {
+    const paths = () =>
+      document.paths as Record<
+        string,
+        Record<string, { responses: Record<string, unknown> }>
+      >;
+    const statuses = (path: string, method: string) =>
+      Object.keys(paths()[path][method].responses).sort();
+
+    it('exposes the upload, processing and delivery routes', () => {
+      expect(Object.keys(paths())).toEqual(
+        expect.arrayContaining([
+          '/videos',
+          '/videos/{publicId}',
+          '/videos/{publicId}/upload',
+          '/videos/{publicId}/upload/part-urls',
+          '/videos/{publicId}/upload/parts',
+          '/videos/{publicId}/upload/complete',
+          '/videos/{publicId}/stream',
+          '/videos/{publicId}/download',
+          '/videos/{publicId}/thumbnail',
+        ]),
+      );
+    });
+
+    it('documents every error status of the upload routes', () => {
+      expect(statuses('/videos', 'post')).toEqual(
+        ['201', '400', '401', '413', '415'].sort(),
+      );
+      expect(statuses('/videos/{publicId}/upload/complete', 'post')).toEqual(
+        ['202', '400', '401', '404', '409', '410', '422'].sort(),
+      );
+    });
+
+    it('documents VIDEO_NOT_READY on the delivery routes', () => {
+      for (const route of ['stream', 'download', 'thumbnail']) {
+        expect(statuses(`/videos/{publicId}/${route}`, 'get')).toEqual(
+          ['200', '401', '404', '409'].sort(),
+        );
+      }
+    });
+  });
 });

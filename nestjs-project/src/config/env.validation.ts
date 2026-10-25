@@ -21,4 +21,17 @@ export const envValidationSchema = Joi.object({
   MAIL_PORT: Joi.number().default(1025),
   MAIL_FROM: Joi.string().default('"StreamTube" <noreply@streamtube.com>'),
   SWAGGER_ENABLED: Joi.string().valid('true', 'false').default('false'),
+  STORAGE_ENDPOINT: Joi.string().uri().required(),
+  STORAGE_PUBLIC_ENDPOINT: Joi.string().uri().required(),
+  STORAGE_REGION: Joi.string().default('us-east-1'),
+  STORAGE_ACCESS_KEY: Joi.string().required(),
+  STORAGE_SECRET_KEY: Joi.string().required(),
+  STORAGE_BUCKET: Joi.string().required(),
+  REDIS_HOST: Joi.string().required(),
+  REDIS_PORT: Joi.number().port().default(6379),
+  QUEUE_PREFIX: Joi.string().default('bull'),
+  // S3 multipart requires every part except the last to be at least 5 MiB.
+  UPLOAD_PART_SIZE_BYTES: Joi.number().integer().min(5242880).default(67108864),
+  UPLOAD_PART_URL_EXPIRES_SECONDS: Joi.number().integer().min(1).default(900),
+  MEDIA_URL_EXPIRES_SECONDS: Joi.number().integer().min(1).default(3600),
 });
