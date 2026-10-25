@@ -30,10 +30,14 @@ services:
     # wrapper (npm / nest --watch) would kill it abruptly. Restart the service to
     # pick up code changes.
     init: true
+    # Retries until the build succeeds (e.g. before the first `npm install`);
+    # a graceful shutdown exits 0 and is not restarted. `--no` keeps npx from
+    # fetching an unrelated `nest` package when node_modules is missing.
+    restart: on-failure
     command:
       - sh
       - -c
-      - npx nest build --path tsconfig.worker.json && exec node dist-worker/worker
+      - npx --no nest build --path tsconfig.worker.json && exec node dist-worker/worker
     stop_grace_period: 60s
     volumes:
       - .:/home/node/app

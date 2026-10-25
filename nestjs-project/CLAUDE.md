@@ -108,7 +108,7 @@ During active development, run only the tests related to the file being changed 
 
 ### Video worker (`video-worker` service)
 
-The Compose service builds and runs the worker directly (`nest build --path tsconfig.worker.json && exec node dist-worker/worker`) under `init: true`, so SIGTERM reaches node and the worker closes gracefully (it finishes the in-flight job, then exits `0`). It does **not** watch files — after changing worker code run:
+The Compose service builds and runs the worker directly (`nest build --path tsconfig.worker.json && exec node dist-worker/worker`) under `init: true`, so SIGTERM reaches node and the worker closes gracefully (it finishes the in-flight job, then exits `0`). It has `restart: on-failure`, so it keeps retrying until the build succeeds (e.g. on a fresh clone, before the first `npm install`); a graceful shutdown is not restarted. It does **not** watch files — after changing worker code run:
 
 ```bash
 docker compose restart video-worker

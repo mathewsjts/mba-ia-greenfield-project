@@ -69,10 +69,11 @@ docker compose exec nestjs-api npm install
 # Cria o schema do banco (obrigatório — synchronize está desabilitado)
 docker compose exec nestjs-api npm run migration:run
 
-# Reinicia o worker: na primeira subida ele para sem node_modules.
-# Repita sempre que alterar o código do worker (ele não roda em watch mode)
-docker compose restart video-worker
+# O worker se reinicia sozinho até o npm install terminar; confira que ele subiu
 docker compose logs video-worker   # espere: Video worker started, consuming queue "video-processing"
+
+# Ele não roda em watch mode: depois de alterar o código do worker
+docker compose restart video-worker
 
 # Sobe o servidor de desenvolvimento em watch mode
 docker compose exec -d nestjs-api npm run start:dev
