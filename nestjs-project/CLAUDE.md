@@ -74,10 +74,10 @@ npm run start:worker                     # Run the compiled video worker (node d
 npm run start:worker:dev                 # Video worker in watch mode (local use; output in dist-worker/)
 npm run openapi:export                   # Regenerate openapi.json from the code
 
-npm test                                 # Unit tests
+npm test                                 # Unit + integration tests (serial, --runInBand)
 npm run test:watch                       # Unit tests in watch mode
-npm run test:cov                         # Coverage report
-npm run test:e2e                         # End-to-end tests (always with --runInBand)
+npm run test:cov                         # Coverage report (serial, --runInBand)
+npm run test:e2e                         # End-to-end tests (serial, --runInBand)
 
 npx tsc --noEmit                         # Type-check (required before declaring a task done)
 npm run lint                             # ESLint with auto-fix
@@ -95,11 +95,11 @@ curl http://localhost:3000
 
 ### Test execution
 
-Integration and e2e suites share a single test database. They **must** be run with `--runInBand`:
+Integration and e2e suites share a single test database, so they **must** run serially. The `test`, `test:cov` and `test:e2e` scripts already pass `--runInBand`; keep the flag when invoking `jest` directly:
 
 ```bash
-docker compose exec nestjs-api npm test -- --runInBand
-docker compose exec nestjs-api npm run test:e2e   # already configured
+docker compose exec nestjs-api npm test
+docker compose exec nestjs-api npm run test:e2e
 ```
 
 Parallel execution causes FK violations, deadlocks, and cross-suite contamination because suites truncate or seed shared tables concurrently.
